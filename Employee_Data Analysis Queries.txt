@@ -1,0 +1,368 @@
+CREATE DATABASE Employee_Data
+SELECT * FROM [Employee _Data]
+-- Demographic Analysis:
+
+---How many employees are there in the dataset, categorized by gender
+
+SELECT Gender, COUNT(Gender) AS Gender_Count
+FROM [Employee _Data]
+GROUP BY Gender
+
+---What is the distribution of age groups(Young, Mid-aged, Senior) among employees?
+
+SELECT 
+   CASE 
+    WHEN Age <35 THEN 'Young'
+    WHEN Age BETWEEN 35 AND 50 THEN 'Mid_Aged'
+     ELSE 'Senior'
+END AS Age_group,
+  COUNT (*) AS Employee_Count
+FROM [Employee _Data]
+ GROUP BY
+   CASE 
+    WHEN Age <35 THEN 'Young'
+    WHEN Age BETWEEN 35 AND 50 THEN 'Mid_Aged'
+     ELSE 'Senior'
+END;
+
+---Categories employees by their ethnicity 
+
+SELECT DISTINCT Ethnicity
+FROM
+[Employee _Data]
+
+SELECT
+  CASE 
+    WHEN Ethnicity = 'Asian' THEN 'Asian'
+    WHEN Ethnicity = 'Caucasian' THEN 'Caucasian'
+    WHEN Ethnicity = 'Latino' THEN 'Latino'
+     ELSE 'Black'
+END AS Ethnicity_Category,
+ COUNT (*) Ethnicity_Count
+FROM 
+[Employee _Data]
+  GROUP BY
+    CASE 
+     WHEN Ethnicity = 'Asian' THEN 'Asian'
+     WHEN Ethnicity = 'Caucasian' THEN 'Caucasian'
+     WHEN Ethnicity = 'Latino' THEN 'Latino'
+     ELSE 'Black'
+END
+ ORDER BY 
+  Ethnicity_Count DESC
+
+--Salary Analysis:
+
+--- Categories employees by their Salary Range: Low, Medium, and High
+
+SELECT 
+   CASE 
+    WHEN Annual_Salary < 60000 THEN 'Low'
+    WHEN Annual_Salary BETWEEN 60000 AND 100000 THEN 'Medium'
+      ELSE 'High'
+END AS Salary_Category,
+ COUNT (*) Salary_Category 
+  FROM
+  [Employee _Data]
+  GROUP BY
+    CASE 
+     WHEN Annual_Salary < 60000 THEN 'Low'
+     WHEN Annual_Salary BETWEEN 60000 AND 100000 THEN 'Medium'
+      ELSE 'High'
+END 
+
+--- Determine the Average salary for each job titles, 
+
+SELECT Job_Title, AVG(Annual_Salary) AS Average_Salary
+    FROM
+	[Employee _Data]
+  GROUP BY Job_Title
+  ORDER BY 
+   Average_Salary DESC
+
+--Tenure Analysis:
+-- Categorize employees by their tenure with the company: 'Less than 5 years', '5 to 10 years', and 'More than 10 years'.
+
+SELECT Employee_ID, Full_Name, Hire_Date,
+CASE
+  WHEN DATEDIFF(YEAR, Hire_Date, GETDATE()) < 5 THEN 'Less than 5 years'
+  WHEN DATEDIFF(YEAR, Hire_Date, GETDATE()) >=5 AND DATEDIFF(YEAR, Hire_Date, GETDATE()) <=10 THEN '5 to 10 years'
+  ELSE 'More than 10 years'
+END AS Tenure_category
+FROM [Employee _Data]
+
+  --/* "According to the analysis, the majority of employees in the company, totaling 481 individuals,
+  --have worked for over 10 years. 
+  --This group constitutes 48.1% of the company's workforce."*/
+
+-- Determine the average tenure for each job title, categorized into 'Short', 'Medium', and 'Long' tenures.
+
+SELECT Job_Title, 
+    CASE
+        WHEN tenure < 5 THEN 'Short'
+        WHEN tenure >= 5 AND tenure <= 10 THEN 'Medium'
+        ELSE 'Long'
+    END AS tenure_category,
+    AVG(tenure) AS average_tenure
+FROM 
+    (
+        SELECT 
+            Job_Title,
+            DATEDIFF(YEAR, Hire_Date, GETDATE()) AS tenure
+        FROM 
+            [Employee _Data]
+    ) AS employee_tenure
+GROUP BY 
+    Job_Title,
+    CASE
+        WHEN tenure < 5 THEN 'Short'
+        WHEN tenure >= 5 AND tenure <= 10 THEN 'Medium'
+        ELSE 'Long'
+    END;
+
+--Departmental Analysis:
+-- Categorize employees by their department and determine the average age for each department.
+
+SELECT 
+    Department,
+    AVG (Age) AS average_age
+FROM [Employee _Data]
+    GROUP BY 
+    Department;
+
+--Performance Analysis:
+-- Categorize employees by their bonus amount: 'No Bonus', 'Low Bonus', and 'High Bonus'.
+
+SELECT Bonus,
+    CASE
+       WHEN Bonus = '0%' THEN 'No Bonus'
+       WHEN Bonus != '0%'AND Bonus <='20%' THEN 'Low Bonus'
+        ELSE 'High Bonus'
+      END AS Bonus_category
+   FROM [Employee _Data]
+
+-- Determine the average bonus amount for each job title, categorizing them into 'Low', 'Medium', and 'High' based on bonus.
+
+
+	WITH avg_bonus AS (
+    SELECT 
+        Job_Title,
+        AVG(TRY_CONVERT(DECIMAL, Bonus)) AS avg_bonus
+    FROM 
+        [Employee _Data]
+    WHERE 
+        TRY_CONVERT(DECIMAL, Bonus) IS NOT NULL
+    GROUP BY 
+        Job_Title
+)
+SELECT 
+    Job_Title,
+    CASE
+        WHEN AVG(TRY_CONVERT(DECIMAL, Bonus)) <= 20.0 * (SELECT MAX(avg_bonus) FROM avg_bonus) THEN 'Low'
+        WHEN AVG(TRY_CONVERT(DECIMAL, Bonus)) <= 50.0 * (SELECT MAX(avg_bonus) FROM avg_bonus) THEN 'Medium'
+        ELSE 'High'
+    END AS Average_bonus_category
+FROM 
+    [Employee _Data]
+GROUP BY 
+    Job_Title;
+
+--Geographic Analysis:
+-- Categorize employees by their country and determine the average salary for each country.
+
+
+SELECT Country,
+ AVG (Annual_Salary) AS Average_Salary
+  FROM [Employee _Data]
+GROUP BY Country
+/* From Analysis, Brazil has the highest Sum of Average Salary with the value 110281.44
+--Representing 33.70% of Grand Total */
+
+
+-- Identify the city with the highest number of employees, categorizing them into 'Small', 'Medium', and 'Large' cities based on employee count.
+	
+SELECT 
+    City,
+    CASE
+        WHEN COUNT(*) < (SELECT MAX(emp_count) * 0.3 FROM (SELECT city, COUNT(*) as emp_count FROM [Employee _Data] GROUP BY city) AS emp_counts) THEN 'Small'
+        WHEN COUNT(*) < (SELECT MAX(emp_count) * 0.7 FROM (SELECT city, COUNT(*) as emp_count FROM [Employee _Data] GROUP BY city) AS emp_counts) THEN 'Medium'
+        ELSE 'Large'
+    END AS city_category
+FROM 
+    [Employee _Data]
+GROUP BY 
+    City;
+
+	--Exit Analysis:
+
+-- Categorize employees based on their exit status: 'Active' for employees 
+--who are still with the company and 'Exited' for those who have left.
+SELECT * FROM [Employee _Data]
+SELECT Employee_ID, Full_Name,
+  CASE
+    WHEN Exit_Date IS NULL THEN 'Active'
+    ELSE 'Exited'
+     END AS Employment_Status
+ FROM 
+ [Employee _Data]
+
+ /* From the Analysis, 89.70% of employees are still Active and are present working at the company, the compnay posses a very high employees intergrity */
+
+
+-- Determine the average tenure for employees who have exited the company, 
+--categorizing them into 'Short', 'Medium', and 'Long' tenures based on their duration with the company before exit.
+
+
+	SELECT
+    CASE
+        WHEN AVG(DATEDIFF(day, Exit_Date, GETDATE())) < 365 THEN 'Short'
+        WHEN AVG(DATEDIFF(day, Exit_Date, GETDATE())) < 1095 THEN 'Medium'
+        ELSE 'Long'
+    END AS tenure_category,
+    COUNT(*) AS count_of_employees
+FROM
+    [Employee _Data]
+WHERE
+    Exit_Date IS NOT NULL;
+	
+/* Analysis shows that employees that have exited the company have worked long term, more than 3 years which represents they worked for more than 1095 days */
+
+--Ethnicity and Age Analysis:
+
+-- Categorize employees by their ethnicity and age group, such as 'Asian - Young', 'Black - Mid-aged', 'Caucasian - Senior', etc.
+
+     --Asain Ethnicity
+		SELECT
+    CASE 
+        WHEN Ethnicity = 'Asian' AND Age < 30 THEN 'Asian-Young'
+        WHEN Ethnicity = 'Asian' AND Age >= 30 AND Age <= 50 THEN 'Asain-Mid-aged'
+        ELSE 'Asain-Senior'
+    END AS category,
+    COUNT(*) AS count_of_employees
+FROM
+    [Employee _Data]
+GROUP BY
+CASE 
+       WHEN Ethnicity = 'Asian' AND Age < 30 THEN 'Asian-Young'
+        WHEN Ethnicity = 'Asian' AND Age >= 30 AND Age <= 50 THEN 'Asain-Mid-aged'
+        ELSE 'Asain-Senior'
+    END;
+
+	--Black Ethnicity
+	SELECT
+    CASE 
+        WHEN Ethnicity = 'Black' AND Age < 30 THEN 'Black-Young'
+        WHEN Ethnicity = 'Black' AND Age >= 30 AND Age <= 50 THEN 'Black-Mid-aged'
+        ELSE 'Black-Senior'
+    END AS category,
+    COUNT(*) AS count_of_employees
+FROM
+    [Employee _Data]
+GROUP BY
+CASE 
+       WHEN Ethnicity = 'Black' AND Age < 30 THEN 'Black-Young'
+        WHEN Ethnicity = 'Black' AND Age >= 30 AND Age <= 50 THEN 'Black-Mid-aged'
+        ELSE 'Black-Senior'
+    END;
+
+	--Caucasian Ethnicity
+	SELECT
+    CASE 
+        WHEN Ethnicity = 'Caucasian' AND Age < 30 THEN 'Caucasian-Young'
+        WHEN Ethnicity = 'Caucasian' AND Age >= 30 AND Age <= 50 THEN 'Caucasian-Mid-aged'
+        ELSE 'Caucasian-Senior'
+    END AS category,
+    COUNT(*) AS count_of_employees
+FROM
+    [Employee _Data]
+GROUP BY
+       CASE 
+        WHEN Ethnicity = 'Caucasian' AND Age < 30 THEN 'Caucasian-Young'
+        WHEN Ethnicity = 'Caucasian' AND Age >= 30 AND Age <= 50 THEN 'Caucasian-Mid-aged'
+        ELSE 'Caucasian-Senior'
+    END;
+
+	--Latino
+	SELECT
+    CASE 
+        WHEN Ethnicity = 'Latino' AND Age < 30 THEN 'Latino-Young'
+        WHEN Ethnicity = 'Latino' AND Age >= 30 AND Age <= 50 THEN 'Latino-Mid-aged'
+        ELSE 'Latino-Senior'
+    END AS category,
+    COUNT(*) AS count_of_employees
+FROM
+    [Employee _Data]
+GROUP BY
+       CASE 
+        WHEN Ethnicity = 'Latino' AND Age < 30 THEN 'Latino-Young'
+        WHEN Ethnicity = 'Latino' AND Age >= 30 AND Age <= 50 THEN 'Latino-Mid-aged'
+        ELSE 'Latino-Senior'
+    END;
+
+
+-- Determine the average salary for each ethnicity-age group combination.
+
+SELECT
+    CASE 
+        WHEN Ethnicity = 'Asian' AND Age < 30 THEN 'Asian-Young'
+        WHEN Ethnicity = 'Asian' AND Age >= 30 AND Age <= 50 THEN 'Asain-Mid-aged'
+        ELSE 'Asain-Senior'
+    END AS category,
+    AVG(Annual_Salary) AS Average_Salary
+FROM
+    [Employee _Data]
+GROUP BY
+CASE 
+       WHEN Ethnicity = 'Asian' AND Age < 30 THEN 'Asian-Young'
+        WHEN Ethnicity = 'Asian' AND Age >= 30 AND Age <= 50 THEN 'Asain-Mid-aged'
+        ELSE 'Asain-Senior'
+    END;
+	-- Black Ethnicity
+	SELECT
+    CASE 
+        WHEN Ethnicity = 'Black' AND Age < 30 THEN 'Black-Young'
+        WHEN Ethnicity = 'Black' AND Age >= 30 AND Age <= 50 THEN 'Black-Mid-aged'
+        ELSE 'Black-Senior'
+    END AS category,
+        AVG(Annual_Salary) AS Average_Salary
+FROM
+    [Employee _Data]
+GROUP BY
+CASE 
+       WHEN Ethnicity = 'Black' AND Age < 30 THEN 'Black-Young'
+        WHEN Ethnicity = 'Black' AND Age >= 30 AND Age <= 50 THEN 'Black-Mid-aged'
+        ELSE 'Black-Senior'
+    END;
+
+	--Caucasian Ethnicity
+	SELECT
+    CASE 
+        WHEN Ethnicity = 'Caucasian' AND Age < 30 THEN 'Caucasian-Young'
+        WHEN Ethnicity = 'Caucasian' AND Age >= 30 AND Age <= 50 THEN 'Caucasian-Mid-aged'
+        ELSE 'Caucasian-Senior'
+    END AS category,
+        AVG(Annual_Salary) AS Average_Salary
+FROM
+    [Employee _Data]
+GROUP BY
+       CASE 
+        WHEN Ethnicity = 'Caucasian' AND Age < 30 THEN 'Caucasian-Young'
+        WHEN Ethnicity = 'Caucasian' AND Age >= 30 AND Age <= 50 THEN 'Caucasian-Mid-aged'
+        ELSE 'Caucasian-Senior'
+    END;
+	-- Latino Ethnicity
+	SELECT
+    CASE 
+        WHEN Ethnicity = 'Latino' AND Age < 30 THEN 'Latino-Young'
+        WHEN Ethnicity = 'Latino' AND Age >= 30 AND Age <= 50 THEN 'Latino-Mid-aged'
+        ELSE 'Latino-Senior'
+    END AS category,
+    AVG(Annual_Salary) AS Average_Salary
+FROM
+    [Employee _Data]
+GROUP BY
+       CASE 
+        WHEN Ethnicity = 'Latino' AND Age < 30 THEN 'Latino-Young'
+        WHEN Ethnicity = 'Latino' AND Age >= 30 AND Age <= 50 THEN 'Latino-Mid-aged'
+        ELSE 'Latino-Senior'
+    END;
